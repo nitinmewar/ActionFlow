@@ -8,10 +8,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"orbit/cmd/database/entities"
 	"orbit/cmd/env"
 	"orbit/cmd/server/models"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -37,54 +35,56 @@ func WebhookHandler(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		run := payload.WorkFlowRun
-		repo := payload.Repository.FullName
+		fmt.Println("================================")
+		fmt.Println(payload)
+		// run := payload.WorkFlowRun
+		// repo := payload.Repository.FullName
 
-		var startedAt, completedAt *time.Time
-		if run.CreatedAt != "" {
-			t, _ := time.Parse(time.RFC3339, run.CreatedAt)
-			startedAt = &t
-		}
-		if run.UpdatedAt != "" {
-			t, _ := time.Parse(time.RFC3339, run.UpdatedAt)
-			completedAt = &t
-		}
-		var duration *int
-		if startedAt != nil && completedAt != nil {
-			d := int(completedAt.Sub(*startedAt).Seconds())
-			duration = &d
-		}
+		// var startedAt, completedAt *time.Time
+		// if run.CreatedAt != "" {
+		// 	t, _ := time.Parse(time.RFC3339, run.CreatedAt)
+		// 	startedAt = &t
+		// }
+		// if run.UpdatedAt != "" {
+		// 	t, _ := time.Parse(time.RFC3339, run.UpdatedAt)
+		// 	completedAt = &t
+		// }
+		// var duration *int
+		// if startedAt != nil && completedAt != nil {
+		// 	d := int(completedAt.Sub(*startedAt).Seconds())
+		// 	duration = &d
+		// }
 
-		record := entities.Run{
-			GithubRunID:     run.ID,
-			Repository:      repo,
-			WorkflowName:    run.Name,
-			Status:          run.Status,
-			Conclusion:      run.Conclusion,
-			Ref:             run.Event,
-			Branch:          run.HeadBranch,
-			CommitSHA:       run.HeadSha,
-			CommitMessage:   run.HeadCommit.Message,
-			AuthorName:      run.HeadCommit.Author.Name,
-			AuthorEmail:     run.HeadCommit.Author.Email,
-			StartedAt:       startedAt,
-			CompletedAt:     completedAt,
-			DurationSeconds: duration,
-			HTMLURL:         run.HtmlURL,
-			RawPayload:      body,
-		}
+		// record := entities.Run{
+		// 	GithubRunID:     run.ID,
+		// 	Repository:      repo,
+		// 	WorkflowName:    run.Name,
+		// 	Status:          run.Status,
+		// 	Conclusion:      run.Conclusion,
+		// 	Ref:             run.Event,
+		// 	Branch:          run.HeadBranch,
+		// 	CommitSHA:       run.HeadSha,
+		// 	CommitMessage:   run.HeadCommit.Message,
+		// 	AuthorName:      run.HeadCommit.Author.Name,
+		// 	AuthorEmail:     run.HeadCommit.Author.Email,
+		// 	StartedAt:       startedAt,
+		// 	CompletedAt:     completedAt,
+		// 	DurationSeconds: duration,
+		// 	HTMLURL:         run.HtmlURL,
+		// 	RawPayload:      body,
+		// }
 
-		var existing entities.Run
-		tx := db.Where("github_run_id = ?", run.ID).First(&existing)
-		if tx.Error == gorm.ErrRecordNotFound {
-			db.Create(&record)
-		} else if tx.Error == nil {
-			record.ID = existing.ID
-			db.Model(&existing).Updates(record)
-		} else {
-			c.AbortWithStatus(http.StatusInternalServerError)
-			return
-		}
+		// var existing entities.Run
+		// tx := db.Where("github_run_id = ?", run.ID).First(&existing)
+		// if tx.Error == gorm.ErrRecordNotFound {
+		// 	db.Create(&record)
+		// } else if tx.Error == nil {
+		// 	record.ID = existing.ID
+		// 	db.Model(&existing).Updates(record)
+		// } else {
+		// 	c.AbortWithStatus(http.StatusInternalServerError)
+		// 	return
+		// }
 		c.Status(http.StatusAccepted)
 	}
 }
