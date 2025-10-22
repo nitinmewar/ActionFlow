@@ -1,0 +1,108 @@
+import { WorkflowRun } from "@/types/workflow";
+
+export const mockWorkflowRuns: WorkflowRun[] = [
+  {
+    run_id: 18660381892,
+    workflow_name: "Test Workflow",
+    repository: "owner/repo",
+    status: "completed",
+    conclusion: "success",
+    head_branch: "main",
+    actor_login: "john-doe",
+    run_started_at: "2025-10-20T17:50:07Z",
+    duration: 45,
+    commit_message: "Update README",
+    github_url: "https://github.com/owner/repo/actions/runs/18660381892"
+  },
+  {
+    run_id: 18660381891,
+    workflow_name: "Build and Deploy",
+    repository: "owner/frontend-app",
+    status: "in_progress",
+    conclusion: null,
+    head_branch: "develop",
+    actor_login: "jane-smith",
+    run_started_at: "2025-10-20T17:45:12Z",
+    duration: 120,
+    commit_message: "Add new feature component",
+    github_url: "https://github.com/owner/frontend-app/actions/runs/18660381891"
+  },
+  {
+    run_id: 18660381890,
+    workflow_name: "Lint and Test",
+    repository: "owner/backend-api",
+    status: "completed",
+    conclusion: "failure",
+    head_branch: "feature/api-v2",
+    actor_login: "bob-johnson",
+    run_started_at: "2025-10-20T17:40:33Z",
+    duration: 78,
+    commit_message: "Fix authentication bug",
+    github_url: "https://github.com/owner/backend-api/actions/runs/18660381890"
+  },
+  {
+    run_id: 18660381889,
+    workflow_name: "CI Pipeline",
+    repository: "owner/repo",
+    status: "queued",
+    conclusion: null,
+    head_branch: "main",
+    actor_login: "alice-williams",
+    run_started_at: "2025-10-20T17:35:21Z",
+    duration: 0,
+    commit_message: "Refactor database queries",
+    github_url: "https://github.com/owner/repo/actions/runs/18660381889"
+  },
+  {
+    run_id: 18660381888,
+    workflow_name: "Security Scan",
+    repository: "owner/security-tools",
+    status: "completed",
+    conclusion: "success",
+    head_branch: "main",
+    actor_login: "charlie-brown",
+    run_started_at: "2025-10-20T17:30:45Z",
+    duration: 156,
+    commit_message: "Update dependencies",
+    github_url: "https://github.com/owner/security-tools/actions/runs/18660381888"
+  },
+  {
+    run_id: 18660381887,
+    workflow_name: "Docker Build",
+    repository: "owner/microservice",
+    status: "completed",
+    conclusion: "cancelled",
+    head_branch: "hotfix/urgent",
+    actor_login: "david-martinez",
+    run_started_at: "2025-10-20T17:25:18Z",
+    duration: 34,
+    commit_message: "Emergency fix for production",
+    github_url: "https://github.com/owner/microservice/actions/runs/18660381887"
+  },
+  {
+    run_id: 18660381886,
+    workflow_name: "E2E Tests",
+    repository: "owner/frontend-app",
+    status: "completed",
+    conclusion: "success",
+    head_branch: "main",
+    actor_login: "emma-davis",
+    run_started_at: "2025-10-20T17:20:52Z",
+    duration: 203,
+    commit_message: "Add E2E test coverage",
+    github_url: "https://github.com/owner/frontend-app/actions/runs/18660381886"
+  },
+  {
+    run_id: 18660381885,
+    workflow_name: "Build and Deploy",
+    repository: "owner/backend-api",
+    status: "completed",
+    conclusion: "failure",
+    head_branch: "develop",
+    actor_login: "frank-miller",
+    run_started_at: "2025-10-20T17:15:37Z",
+    duration: 92,
+    commit_message: "Implement rate limiting",
+    github_url: "https://github.com/owner/backend-api/actions/runs/18660381885"
+  },
+];
