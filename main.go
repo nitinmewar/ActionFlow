@@ -5,6 +5,7 @@ import (
 	"orbit/cmd/database"
 	"orbit/cmd/env"
 	"orbit/cmd/server"
+	"orbit/cmd/utils"
 )
 
 func main() {
@@ -15,7 +16,7 @@ func main() {
 	db, _ := database.Connection()
 
 	// migrate db
-	// utils.Migrate()
+	utils.Migrate()
 
 	// setup server
 	port := env.Port.GetValue()

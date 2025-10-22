@@ -2,7 +2,6 @@ package database
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 	"orbit/cmd/env"
 	"time"
@@ -26,9 +25,6 @@ func Connection() (*gorm.DB, *sql.DB) {
 
 	// get DSN from env variables
 	dsn := env.DBURL.GetValue()
-
-	fmt.Println("=========================================================================")
-	fmt.Println(dsn)
 
 	// open a postgres connection
 	postgresDB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})

@@ -2,23 +2,22 @@ package models
 
 import "time"
 
-type RunListItem struct {
-	ID              string     `json:"id"`
-	GithubRunID     int64      `json:"github_run_id"`
-	Repository      string     `json:"repository"`
-	WorkflowName    string     `json:"workflow_name"`
-	Status          string     `json:"status"`
-	Conclusion      string     `json:"conclusion"`
-	Branch          string     `json:"branch"`
-	CommitSHA       string     `json:"commit_sha"`
-	StartedAt       *time.Time `json:"started_at"`
-	DurationSeconds *int       `json:"duration_seconds"`
-}
-
-type RunDetail struct {
-	RunListItem
-	CommitMessage string `json:"commit_message"`
-	AuthorName    string `json:"author_name"`
-	AuthorEmail   string `json:"author_email"`
-	HTMLURL       string `json:"html_url"`
+type WorkflowRunSummary struct {
+	ID               uint       `json:"id"`
+	RunID            int64      `json:"run_id"`
+	WorkflowName     string     `json:"workflow_name"`
+	Repository       string     `json:"repository"`
+	HeadBranch       string     `json:"head_branch"`
+	HeadSHAShort     string     `json:"head_sha_short"`
+	DisplayTitle     string     `json:"display_title"`
+	Event            string     `json:"event"`
+	Status           string     `json:"status"`
+	Conclusion       string     `json:"conclusion"`
+	ActorLogin       string     `json:"actor_login"`
+	RunNumber        int        `json:"run_number"`
+	RunStartedAt     time.Time  `json:"run_started_at"`
+	CompletedAt      *time.Time `json:"completed_at"`
+	Duration         *int64     `json:"duration"`
+	CommitMessage    string     `json:"commit_message"`
+	CommitAuthorName string     `json:"commit_author_name"`
 }

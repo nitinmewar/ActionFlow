@@ -2,69 +2,126 @@ package handlers
 
 import (
 	"net/http"
-	"orbit/cmd/database/entities"
-	"orbit/cmd/server/models"
+	"orbit/cmd/database"
+	"orbit/cmd/repo"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
-func ListRunsHandler(db *gorm.DB) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		var runs []entities.Run
-		if err := db.Order("started_at DESC").Limit(25).Find(&runs).Error; err != nil {
-			c.AbortWithStatus(http.StatusInternalServerError)
-			return
-		}
-		out := make([]models.RunListItem, len(runs))
-		for i, r := range runs {
-			out[i] = models.RunListItem{
-				ID:              r.ID,
-				GithubRunID:     r.GithubRunID,
-				Repository:      r.Repository,
-				WorkflowName:    r.WorkflowName,
-				Status:          r.Status,
-				Conclusion:      r.Conclusion,
-				Branch:          r.Branch,
-				CommitSHA:       r.CommitSHA,
-				StartedAt:       r.StartedAt,
-				DurationSeconds: r.DurationSeconds,
-			}
-		}
-		c.JSON(http.StatusOK, out)
+// ListWorkflowRuns handles GET /api/runs
+func ListWorkflowRuns(ctx *gin.Context) {
+	db, _ := database.Connection()
+
+	runRepo := repo.NewWorkflowRunRepository(db)
+
+	// Parse query parameters
+	options := parseListOptions(ctx)
+
+	// Get workflow runs from repository
+	workflowRuns, total, err := runRepo.List(options)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch workflow runs"})
+		return
 	}
+
+	// Calculate pagination info
+	pagination := gin.H{
+		"total":     total,
+		"page":      options.Page,
+		"page_size": options.PageSize,
+		"pages":     calculateTotalPages(total, options.PageSize),
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"data":       workflowRuns,
+		"pagination": pagination,
+	})
 }
 
-func GetRunDetailHandler(db *gorm.DB) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		id := c.Param("id")
-		var run entities.Run
-		if err := db.Where("id = ?", id).First(&run).Error; err != nil {
-			if err == gorm.ErrRecordNotFound {
-				c.AbortWithStatus(http.StatusNotFound)
-			} else {
-				c.AbortWithStatus(http.StatusInternalServerError)
-			}
+// parseListOptions extracts and validates query parameters
+func parseListOptions(ctx *gin.Context) repo.ListOptions {
+	options := repo.ListOptions{}
+
+	// Filters
+	// options.Repository = ctx.Query("repository")
+	// options.Status = ctx.Query("status")
+	// options.Branch = ctx.Query("branch")
+	// options.Event = ctx.Query("event")
+	// options.Conclusion = ctx.Query("conclusion")
+
+	// Sorting - only allow "run_started_at" or "status"
+	sortBy := ctx.Query("sort_by")
+	if sortBy == "status" {
+		options.SortBy = "status"
+	} else {
+		options.SortBy = "run_started_at" // default
+	}
+
+	// Sort order
+	sortOrder := ctx.Query("sort_order")
+	if sortOrder == "asc" {
+		options.SortOrder = "asc"
+	} else {
+		options.SortOrder = "desc" // default
+	}
+
+	// Pagination
+	page, _ := strconv.Atoi(ctx.Query("page"))
+	if page < 1 {
+		page = 1
+	}
+	options.Page = page
+
+	pageSize, _ := strconv.Atoi(ctx.Query("page_size"))
+	if pageSize < 1 {
+		pageSize = 20 // default page size
+	} else if pageSize > 100 {
+		pageSize = 100 // max page size
+	}
+	options.PageSize = pageSize
+
+	return options
+}
+
+func calculateTotalPages(total int64, pageSize int) int64 {
+	if pageSize == 0 {
+		return 0
+	}
+	pages := total / int64(pageSize)
+	if total%int64(pageSize) > 0 {
+		pages++
+	}
+	return pages
+}
+
+// GetWorkflowRun handles GET /api/runs/:id
+func GetWorkflowRun(ctx *gin.Context) {
+	db, _ := database.Connection()
+
+	runRepo := repo.NewWorkflowRunRepository(db)
+
+	// Get run ID from URL parameter
+	idParam := ctx.Param("id")
+	runID, err := strconv.ParseInt(idParam, 10, 64)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid run ID"})
+		return
+	}
+
+	// Get workflow run from repository
+	workflowRun, err := runRepo.GetByRunID(runID)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Workflow run not found"})
 			return
 		}
-		resp := models.RunDetail{
-			RunListItem: models.RunListItem{
-				ID:              run.ID,
-				GithubRunID:     run.GithubRunID,
-				Repository:      run.Repository,
-				WorkflowName:    run.WorkflowName,
-				Status:          run.Status,
-				Conclusion:      run.Conclusion,
-				Branch:          run.Branch,
-				CommitSHA:       run.CommitSHA,
-				StartedAt:       run.StartedAt,
-				DurationSeconds: run.DurationSeconds,
-			},
-			CommitMessage: run.CommitMessage,
-			AuthorName:    run.AuthorName,
-			AuthorEmail:   run.AuthorEmail,
-			HTMLURL:       run.HTMLURL,
-		}
-		c.JSON(http.StatusOK, resp)
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch workflow run"})
+		return
 	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"data": workflowRun,
+	})
 }

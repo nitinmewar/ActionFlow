@@ -14,9 +14,9 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 	r := gin.Default()
 	api := r.Group("/api")
 	{
-		api.GET("/runs", handlers.ListRunsHandler(db))
-		api.GET("/runs/:id", handlers.GetRunDetailHandler(db))
+		api.GET("/runs", handlers.ListWorkflowRuns)
+		api.GET("/runs/:id", handlers.GetWorkflowRun)
 	}
-	r.POST("/webhook", handlers.WebhookHandler(db))
+	r.POST("/webhook", handlers.WebhookHandler)
 	return r
 }

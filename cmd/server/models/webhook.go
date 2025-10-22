@@ -1,35 +1,66 @@
 package models
 
-type WorkflowRunPayload struct {
-	Action      string      `json:"action"`
-	WorkFlowRun WorkFlowRun `json:"workflow_run"`
-	Repository  Repository  `json:"repository"`
+import (
+	"time"
+)
+
+// GitHubWebhookPayload is the top-level webhook payload
+// GitHubWebhookPayload represents the complete webhook payload
+type GitHubWebhookPayload struct {
+	Action      string              `json:"action"`
+	WorkflowRun *WorkflowRunWebhook `json:"workflow_run"`
+	Repository  Repository          `json:"repository"`
+	Workflow    Workflow            `json:"workflow"`
+	Sender      User                `json:"sender"`
 }
 
-type WorkFlowRun struct {
-	ID         int64      `json:"id"`
-	Name       string     `json:"name"`
-	Status     string     `json:"status"`
-	Conclusion string     `json:"conclusion"`
-	HeadBranch string     `json:"head_branch"`
-	HeadSha    string     `json:"head_sha"`
-	HtmlURL    string     `json:"html_url"`
-	Event      string     `json:"event"`
-	HeadCommit HeadCommit `json:"head_commit"`
-	CreatedAt  string     `json:"created_at"`
-	UpdatedAt  string     `json:"updated_at"`
+// WorkflowRunWebhook represents the workflow_run object from GitHub
+type WorkflowRunWebhook struct {
+	ID              int64     `json:"id"`
+	Name            string    `json:"name"`
+	HeadBranch      string    `json:"head_branch"`
+	HeadSHA         string    `json:"head_sha"`
+	Path            string    `json:"path"`
+	DisplayTitle    string    `json:"display_title"`
+	RunNumber       int       `json:"run_number"`
+	Event           string    `json:"event"`
+	Status          string    `json:"status"`
+	Conclusion      string    `json:"conclusion"`
+	WorkflowID      int64     `json:"workflow_id"`
+	CheckSuiteID    int64     `json:"check_suite_id"`
+	Actor           User      `json:"actor"`
+	RunAttempt      int       `json:"run_attempt"`
+	RunStartedAt    time.Time `json:"run_started_at"`
+	TriggeringActor User      `json:"triggering_actor"`
+	HTMLURL         string    `json:"html_url"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+	HeadCommit      Commit    `json:"head_commit"`
 }
 
-type HeadCommit struct {
-	Message string `json:"message"`
-	Author  Author `json:"author"`
+type Repository struct {
+	ID       int64  `json:"id"`
+	FullName string `json:"full_name"`
+}
+
+type Workflow struct {
+	ID   int64  `json:"id"`
+	Name string `json:"name"`
+	Path string `json:"path"`
+}
+
+type User struct {
+	Login string `json:"login"`
+}
+
+type Commit struct {
+	ID        string    `json:"id"`
+	Message   string    `json:"message"`
+	Timestamp time.Time `json:"timestamp"`
+	Author    Author    `json:"author"`
 }
 
 type Author struct {
 	Name  string `json:"name"`
 	Email string `json:"email"`
-}
-
-type Repository struct {
-	FullName string `json:"full_name"`
 }

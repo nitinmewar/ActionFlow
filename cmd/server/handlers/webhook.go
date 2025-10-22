@@ -8,86 +8,16 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"orbit/cmd/database"
+	"orbit/cmd/database/entities"
 	"orbit/cmd/env"
+	"orbit/cmd/repo"
 	"orbit/cmd/server/models"
+	"time"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
-
-/* -------------------------------------------------------------------------- */
-/*                               WEBHOOK HANDLER                              */
-/* -------------------------------------------------------------------------- */
-func WebhookHandler(db *gorm.DB) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		body, err := io.ReadAll(c.Request.Body)
-		if err != nil {
-			c.AbortWithStatus(http.StatusBadRequest)
-			return
-		}
-		if err := verifySignature(c.GetHeader("X-Hub-Signature-256"), body); err != nil {
-			c.AbortWithStatus(http.StatusUnauthorized)
-			return
-		}
-		var payload models.WorkflowRunPayload
-		if err := json.Unmarshal(body, &payload); err != nil {
-			c.AbortWithStatus(http.StatusBadRequest)
-			return
-		}
-
-		fmt.Println("================================")
-		fmt.Println(payload)
-		// run := payload.WorkFlowRun
-		// repo := payload.Repository.FullName
-
-		// var startedAt, completedAt *time.Time
-		// if run.CreatedAt != "" {
-		// 	t, _ := time.Parse(time.RFC3339, run.CreatedAt)
-		// 	startedAt = &t
-		// }
-		// if run.UpdatedAt != "" {
-		// 	t, _ := time.Parse(time.RFC3339, run.UpdatedAt)
-		// 	completedAt = &t
-		// }
-		// var duration *int
-		// if startedAt != nil && completedAt != nil {
-		// 	d := int(completedAt.Sub(*startedAt).Seconds())
-		// 	duration = &d
-		// }
-
-		// record := entities.Run{
-		// 	GithubRunID:     run.ID,
-		// 	Repository:      repo,
-		// 	WorkflowName:    run.Name,
-		// 	Status:          run.Status,
-		// 	Conclusion:      run.Conclusion,
-		// 	Ref:             run.Event,
-		// 	Branch:          run.HeadBranch,
-		// 	CommitSHA:       run.HeadSha,
-		// 	CommitMessage:   run.HeadCommit.Message,
-		// 	AuthorName:      run.HeadCommit.Author.Name,
-		// 	AuthorEmail:     run.HeadCommit.Author.Email,
-		// 	StartedAt:       startedAt,
-		// 	CompletedAt:     completedAt,
-		// 	DurationSeconds: duration,
-		// 	HTMLURL:         run.HtmlURL,
-		// 	RawPayload:      body,
-		// }
-
-		// var existing entities.Run
-		// tx := db.Where("github_run_id = ?", run.ID).First(&existing)
-		// if tx.Error == gorm.ErrRecordNotFound {
-		// 	db.Create(&record)
-		// } else if tx.Error == nil {
-		// 	record.ID = existing.ID
-		// 	db.Model(&existing).Updates(record)
-		// } else {
-		// 	c.AbortWithStatus(http.StatusInternalServerError)
-		// 	return
-		// }
-		c.Status(http.StatusAccepted)
-	}
-}
 
 func verifySignature(header string, body []byte) error {
 	secret := env.GithubWebhookSecret.GetValue()
@@ -101,4 +31,119 @@ func verifySignature(header string, body []byte) error {
 		return fmt.Errorf("signature mismatch")
 	}
 	return nil
+}
+
+func WebhookHandler(ctx *gin.Context) {
+	db, _ := database.Connection()
+
+	runRepo := repo.NewWorkflowRunRepository(db)
+
+	body, err := io.ReadAll(ctx.Request.Body)
+	if err != nil {
+		ctx.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
+	if err := verifySignature(ctx.GetHeader("X-Hub-Signature-256"), body); err != nil {
+		ctx.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
+	// Parse URL-encoded form data
+	values, err := url.ParseQuery(string(body))
+	if err != nil {
+		fmt.Println("Error parsing form data:", err)
+		ctx.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
+	payloadStr := values.Get("payload")
+	if payloadStr == "" {
+		fmt.Println("No payload found in request")
+		ctx.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
+	// URL decode the payload
+	decodedPayload, err := url.QueryUnescape(payloadStr)
+	if err != nil {
+		fmt.Println("Error URL decoding payload:", err)
+		ctx.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
+	var webhookPayload models.GitHubWebhookPayload
+	if err := json.Unmarshal([]byte(decodedPayload), &webhookPayload); err != nil {
+		fmt.Println("Error unmarshaling JSON:", err)
+		ctx.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
+	// Only process workflow_run events with "completed" action
+	if webhookPayload.WorkflowRun != nil {
+		workflowRun := mapWebhookToWorkflowRun(webhookPayload)
+
+		// Store in database
+		if err := runRepo.CreateOrUpdate(workflowRun); err != nil {
+			fmt.Println("Error storing workflow run:", err)
+			ctx.AbortWithStatus(http.StatusInternalServerError)
+			return
+		}
+
+		fmt.Printf("Successfully stored workflow run %d with conclusion: %s\n",
+			workflowRun.RunID, workflowRun.Conclusion)
+	}
+
+	ctx.JSON(http.StatusOK, "entry created")
+}
+
+// Helper function to map webhook data to your struct
+func mapWebhookToWorkflowRun(payload models.GitHubWebhookPayload) *entities.WorkflowRun {
+	wr := payload.WorkflowRun
+
+	// Calculate duration if completed
+	var duration *int64
+	var completedAt *time.Time
+
+	if payload.Action == "completed" && wr.UpdatedAt.After(wr.RunStartedAt) {
+		dur := int64(wr.UpdatedAt.Sub(wr.RunStartedAt).Seconds())
+		duration = &dur
+		completedAt = &wr.UpdatedAt
+	}
+
+	// Extract short SHA (first 7 characters)
+	headSHAShort := ""
+	if len(wr.HeadSHA) >= 7 {
+		headSHAShort = wr.HeadSHA[:7]
+	}
+
+	return &entities.WorkflowRun{
+		RunID:                wr.ID,
+		WorkflowName:         wr.Name,
+		WorkflowID:           wr.WorkflowID,
+		Repository:           payload.Repository.FullName,
+		HeadBranch:           wr.HeadBranch,
+		HeadSHA:              wr.HeadSHA,
+		HeadSHAShort:         headSHAShort,
+		DisplayTitle:         wr.DisplayTitle,
+		WorkflowPath:         wr.Path,
+		CheckSuiteID:         wr.CheckSuiteID,
+		RunNumber:            wr.RunNumber,
+		RunAttempt:           wr.RunAttempt,
+		Event:                wr.Event,
+		Status:               wr.Status,
+		Conclusion:           wr.Conclusion,
+		ActorLogin:           wr.Actor.Login,
+		TriggeringActorLogin: wr.TriggeringActor.Login,
+		GitHubURL:            wr.HTMLURL,
+		RunStartedAt:         wr.RunStartedAt,
+		CreatedAt:            wr.CreatedAt,
+		UpdatedAt:            wr.UpdatedAt,
+		CompletedAt:          completedAt,
+		Duration:             duration,
+		CommitMessage:        wr.HeadCommit.Message,
+		CommitTimestamp:      wr.HeadCommit.Timestamp,
+		CommitAuthorName:     wr.HeadCommit.Author.Name,
+		CommitAuthorEmail:    wr.HeadCommit.Author.Email,
+	}
 }
